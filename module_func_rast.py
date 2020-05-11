@@ -38,7 +38,7 @@ class Raster_operations():
     def clip_raster_by_shp(self):
         '''
         ### Clip a raster
-            Inform raster path and shapefile path
+            Inport: raster path and shapefile path
             It will clip the raster using shp bondaries.
             Please, check if all of them has the same extent
         '''
@@ -48,7 +48,7 @@ class Raster_operations():
             features = [feature['geometry'] for feature in shp]
  
         # Loading raster
-        with rasterio.open(self.__imgdirdir, 'r+') as tif:
+        with rasterio.open(self.__imgdir, 'r+') as tif:
             tif.nodata = np.nan
             #  Cropping it using a rasterio mask
             out_image, out_transform = rasterio.mask.mask(tif, features, crop=True, nodata=np.nan)
@@ -65,7 +65,7 @@ class Raster_operations():
                             })   
 
             # Creating a new name for raster
-            output = self.__imgdirdir[:-4] + '_C.tif'
+            output = self.__imgdir[:-4] + '_C.tif'
 
             # Creating new file to save clipped tif
             with rasterio.open(output, 'w', **out_meta) as dest:
@@ -77,10 +77,10 @@ class Raster_operations():
         '''
         ### Nodata handling
             Correcting abscence of nodata in raster
-            Inform a raster 
+            Input: a raster 
             Ex: If nodata is -3.999e-10 will be replaced by np.nan
         '''
-        with rasterio.open(self.__imgdirdir) as tif:
+        with rasterio.open(self.__imgdir) as tif:
             image = tif.read(1) 
             profile = tif.meta.copy()
             profile.update({'nodata': np.nan})
@@ -95,7 +95,7 @@ class Raster_operations():
                 image[np.where( image==wrong_nodata)] = np.nan
             
         # Saving
-        output = self.__imgdirdir[:-4] + '_Cor.tif'
+        output = self.__imgdir[:-4] + '_Cor.tif'
         with rasterio.open(output, 'w', **profile) as tif2:
             tif2.write(image, 1 )
 
@@ -104,9 +104,9 @@ class Raster_operations():
     def raster_normalize(self):
         '''
         ### Raster Normalization by mean and std
-            Inform a raster to apply normalization
+            Input: a raster to apply normalization
         '''
-        with rasterio.open(self.__imgdirdir, 'r+') as tif:
+        with rasterio.open(self.__imgdir, 'r+') as tif:
             image = tif.read(1) 
             profile = tif.meta.copy()
             profile.update({'nodata': np.nan})
@@ -123,7 +123,7 @@ class Raster_operations():
             normalized = (image-mean_)/std_
 
         # Saving
-        output = self.__imgdirdir[:-4] + '_Normalized.tif'
+        output = self.__imgdir[:-4] + '_Normalized.tif'
         with rasterio.open(output, 'w', **profile) as tif2:
             tif2.write(normalized, 1 )
         
@@ -132,9 +132,9 @@ class Raster_operations():
     def raster_standartize (self):
         '''
         ### Raster Standartize by min and max
-            Inform a raster to statndartize
+            Input: a raster to statndartize
         '''
-        with rasterio.open(self.__imgdirdir) as tif:
+        with rasterio.open(self.__imgdir) as tif:
             new_tif = tif.read(1) 
             profile = tif.profile.copy()
             profile.update({'nodata': np.nan})
@@ -152,7 +152,7 @@ class Raster_operations():
             pradonizado = (new_tif-min_)/(max_ - min_)
 
         # Saving
-        output = self.__imgdirdir[:-4] + '_Stand.tif'
+        output = self.__imgdir[:-4] + '_Stand.tif'
         with rasterio.open(output, 'w', **profile) as tif2:
             tif2.write(pradonizado, 1 )
 
@@ -160,12 +160,12 @@ class Raster_operations():
 
     def raster_to_shp_points(self):
         '''
-        ### Transform a raster to shapefile points
-            Inform a raster path to write a new shapefile
-            by the pixel centroid
+        ### Transform a raster to shapefile points by the pixel centroid
+            Input: a raster path to write a new shapefile
+            
         '''
         # Loading raster
-        with rasterio.open(self.__imgdirdir) as tif:
+        with rasterio.open(self.__imgdir) as tif:
             image = tif.read(1)  
             transform = tif.transform
             epsg = tif.profile['crs']
@@ -201,13 +201,97 @@ class Raster_operations():
         gdf_ = gp.GeoDataFrame(df, crs={'init' : str(epsg)}, geometry=geometry)
 
         # Exporting shapefile
-        out_shp = self.__imgdirdir[:-4] + '.shp'
+        out_shp = self.__imgdir[:-4] + '.shp'
         gdf_.to_file(out_shp )
 
         return gdf_
 
-    # if __name__ == "__main__":
-    #     main()
+
+class Raster_resample():
+
+    def __init__(self, raster_dir, raster_base='', scale=0):
+        self.__raster = raster_dir
+        self.__scale = scale
+        self.__raster_base = raster_base
+
+    def resample_by_scale(self):
+        '''
+        ### Resampling raster using a scale
+        #     Input: raster directory and scale
+        '''
+        if self.__raster_base == 0:
+            print('Scale must be greater than 0')
+            pass
+        else:
+            with rasterio.open(self.__raster, 'r+') as tif:
+                tif.nodata = np.nan
+                tif_profile = tif.meta.copy()
+                tif_transf = tif.transform
+                print(f'Original raster: \n {tif_transf}')
+                
+                # Raster rescaling
+                transform = rasterio.Affine( round(tif_transf.a * self.__scale), tif_transf.b, tif_transf.c, 
+                                            tif_transf.d, round(tif_transf.e * self.__scale), tif_transf.f)
+                print(f'Transformed raster: \n {transform}')
+
+                # Computing new heigh and width
+                height = int((tif.height) / self.__scale )
+                width = int((tif.width)/ self.__scale )
+
+                # Updating profile with new info
+                tif_profile.update(transform=transform, driver='GTiff', height=height, width=width, crs=tif.crs,
+                                    count = tif.count)
+
+                # Reading raster to resample it
+                data = tif.read(
+                        out_shape=(int(tif.count), int(height), int(width)),
+                        resampling=rasterio.enums.Resampling.average)
+                
+            # Writing a new raster
+            spatial_resolution = round(tif_transf.a * self.__scale)
+            output = self.__raster[:-4] + f'_R{spatial_resolution}.tif'
+            
+            with rasterio.open(output, 'w', **tif_profile) as dst:
+                dst.write(data)
+                    
+            return data                
+
+    def resample_by_raster(self):
+        '''
+        ### Resampling raster by another raster
+            Input: two rasters directories (one to be resampled and another for base)
+        '''   
+        with rasterio.open(self.__raster_base) as base:
+            profile = base.meta.copy()
+            height = base.shape[0]
+            width = base.shape[1]
+
+            # Resolution output image transform
+            xres = int((base.bounds.right  - base.bounds.left) /width)
+            yres = int((base.bounds.top  - base.bounds.bottom ) / height )
+
+            # Affine
+            transform = rasterio.Affine(xres, base.transform.b, base.transform.c,
+                                        base.transform.d, -yres, base.transform.f)
+
+            # Getting the original raster profile and updating with new information
+            profile.update(transform=transform, driver='GTiff', height=height, width=width, 
+                            crs=base.crs, count=base.count, nodata= np.nan, dtype='float32' )
+                                
+        with rasterio.open(self.__raster, 'r+') as tif:
+            # Reading raster to resample it
+            data = tif.read(out_shape=(int(tif.count), int(height), int(width)),
+                            resampling=rasterio.enums.Resampling.average)
+
+            # Writing a new raster
+            output = self.__raster[:-4] + f'_R{xres}_.tif'
+
+        with rasterio.open(output, 'w', **profile) as dst:
+            dst.write(data)
+
+        return data
+        # Resource: #https://gis.stackexchange.com/questions/329434/creating-an-in-memory-rasterio-dataset-from-numpy-array?rq=1
+
 
 
 class Shape_operations():
@@ -219,8 +303,8 @@ class Shape_operations():
     def clip_shapes(self):
         '''
         ### Compute intersection operation (as in GeoPandas/QGIS)
-            Return a new shapefile from common areas in two shapes
-            Require two shapefiles
+            Input: two shapefiles directories
+            Output: a new shapefile from common areas in two shapes
         '''
         # Reading shapefiles
         shp1 = gp.read_file(self.__path_shp1 )
@@ -250,7 +334,7 @@ class Shape_operations():
     def crs_change(self, epsg):
         '''
         ### Change shapefile EPSG
-            Require one shapefile path and the desired EPSG
+            Input: one shapefile direcotory and the desired EPSG
         '''
         # Reading shapefile
         shp1 = gp.read_file(self.__path_shp1 )
@@ -265,7 +349,6 @@ class Shape_operations():
     # if __name__ == "__main__":
     #     main()
   
-
 class UAV_funcs():
 
     def __init__(self, img_directory):
@@ -275,8 +358,8 @@ class UAV_funcs():
     def band_normalized_t1(self):
         '''
         ### Execute band normalization
-            Require a raster with 3 bands (R,G,B) 
-            The outpu will be a raster per band divided by sum of them
+            Input: a raster directory with 3 bands (R,G,B) 
+            Output: will be a raster per band divided by sum of them
         '''
         with rasterio.open(self.__imgdir, 'r+') as tif:
 
@@ -331,13 +414,13 @@ class UAV_funcs():
                             imgB = band_B / (band_R + band_G + band_B) 
                             dst.write_band(1, imgB, window=window)
 
-        return imgR, imgG, imgB           
+        return [imgR, imgG, imgB]           
 
     def band_normalized_t2(self):
         '''
         ### Execute band normalization
-            Require a raster with 3 bands (R,G,B) 
-            The output will be ONE RASTER with each band divided by sum of them
+            Input: a raster directory with 3 bands (R,G,B) 
+            Output: will be ONE RASTER with each band divided by sum of them
         '''
 
         with rasterio.open(self.__imgdir, 'r+') as tif:
@@ -370,11 +453,57 @@ class UAV_funcs():
 
                     dst.write(result, window=window)
 
-
-# #%%
-# rast_dir = r'D:\liz_tifs\rgb.tif'
-# shp_dir = 'C:/Users/liz/Pictures/Saved Pictures/Cultivar_BRS1003IPRO_31982_rec10.shp'
-# rast_class = UAV_funcs(rast_dir)
-# rast_class.band_normalized_t2()
+        return result
 
 
+
+# if __name__ == "__main__":
+#     a = Raster_operations()
+#     b = Shape_operations()
+#     c = UAV_funcs()
+
+
+    # def resample_by_raster(self):
+    #     '''
+    #     ### Resampling raster by another raster
+    #         Input: two rasters directories (one to be resampled and another for base)
+    #     ''' 
+    #     # if self.__raster_base == 0:
+    #     #     print('Inform a raster to resample by raster metadata')
+    #     #     pass
+    #     # else:
+    #     with rasterio.open(self.__raster_base) as base:
+    #         profile = base.meta.copy()
+    #         height = base.shape[0]
+    #         width = base.shape[1]
+
+    #         # Resolution output image transform
+    #         xres = int((base.bounds.right  - base.bounds.left) /width)
+    #         yres = int((base.bounds.top  - base.bounds.bottom ) / height )
+
+    #         # Affine
+    #         transform = rasterio.Affine(xres, base.transform.b, base.transform.c,
+    #                                     base.transform.d, -yres, base.transform.f)
+
+    #         # Getting the original raster profile and updating with new information
+    #         profile.update(transform=transform, driver='GTiff', height=height, width=width, 
+    #                         crs=base.crs, count=base.count, nodata= np.nan, dtype='float32')
+                                
+    #     with rasterio.open(self.__raster, 'r+') as tif:
+    #         # Reading raster to resample it
+    #         data = tif.read(out_shape=(int(tif.count), int(height), int(width)),
+    #                         resampling=rasterio.enums.Resampling.average)
+
+    #     # Writing a new raster
+    #     output = self.__raster[:-4] + f'_R{xres}.tif'
+
+    #     with rasterio.open(output, 'w', **profile) as dst:
+    #         dst.write(data)
+
+    #     return data
+    
+    # # Resource: #https://gis.stackexchange.com/questions/329434/creating-an-in-memory-rasterio-dataset-from-numpy-array?rq=1
+    '''
+    ### Resampling raster by mean
+    Input: raster, scale and base raster
+    '''
