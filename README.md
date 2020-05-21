@@ -10,7 +10,7 @@ In Remote Sensing the amount of UAV (Unnamed Aerial Vehical) data are increasing
 
 ## Getting Started
 
-The main script is module_func_raster.py which contains many of the implemented methods. To understand their usage follow these to scripts: workflow_p1 and workflow_p2.
+The main script is **module_func_raster.py** which contains many of the implemented methods. To understand their usage follow these to scripts: **workflow_p1.py** and **workflow_p2.py**.  
 
 ## Authors
 * **Laiza Cavalcante** 
