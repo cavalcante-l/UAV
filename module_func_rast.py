@@ -17,6 +17,7 @@ DESCRIPTION
 import os
 import fiona
 import rasterio
+import scipy
 import numpy as np
 import pandas as pd
 import geopandas as gp
@@ -208,7 +209,10 @@ class Raster_operations():
 
 
 class Raster_resample():
-
+    '''
+    ### Resampling raster by mean
+    Input: raster, scale and base raster
+    '''
     def __init__(self, raster_dir, raster_base='', scale=0):
         self.__raster = raster_dir
         self.__scale = scale
@@ -291,7 +295,6 @@ class Raster_resample():
 
         return data
         # Resource: #https://gis.stackexchange.com/questions/329434/creating-an-in-memory-rasterio-dataset-from-numpy-array?rq=1
-
 
 
 class Shape_operations():
@@ -456,54 +459,92 @@ class UAV_funcs():
         return result
 
 
+class Outliers_check():
 
-# if __name__ == "__main__":
-#     a = Raster_operations()
-#     b = Shape_operations()
-#     c = UAV_funcs()
+    def __init__(self, path_img='', outliers='None', writing=False, dataset=''):
+        self.__pathimg = path_img
+        self.__write = writing
+        self.__outliers = outliers
+        self.__data = dataset
 
+    def find_outlier(self):
+        '''
+        ### Look for outliers above 3*std
+        '''
+        with rasterio.open(self.__pathimg) as tif:
+            data = tif.read(1)
+            profile = tif.meta.copy()
+            
+        # Remove nan values
+        data = data[np.logical_not(np.isnan(data))]
 
-    # def resample_by_raster(self):
-    #     '''
-    #     ### Resampling raster by another raster
-    #         Input: two rasters directories (one to be resampled and another for base)
-    #     ''' 
-    #     # if self.__raster_base == 0:
-    #     #     print('Inform a raster to resample by raster metadata')
-    #     #     pass
-    #     # else:
-    #     with rasterio.open(self.__raster_base) as base:
-    #         profile = base.meta.copy()
-    #         height = base.shape[0]
-    #         width = base.shape[1]
+        # Searching for outliers
+        cut_off = np.std(data) * 3
+        lower_limit  = np.mean(data) - cut_off 
+        upper_limit = np.mean(data) + cut_off
 
-    #         # Resolution output image transform
-    #         xres = int((base.bounds.right  - base.bounds.left) /width)
-    #         yres = int((base.bounds.top  - base.bounds.bottom ) / height )
+        # Selecting them 
+        outliers = data[np.where((data < lower_limit) | (data > upper_limit))]
+        outliers = np.unique(outliers)
 
-    #         # Affine
-    #         transform = rasterio.Affine(xres, base.transform.b, base.transform.c,
-    #                                     base.transform.d, -yres, base.transform.f)
+        return outliers
 
-    #         # Getting the original raster profile and updating with new information
-    #         profile.update(transform=transform, driver='GTiff', height=height, width=width, 
-    #                         crs=base.crs, count=base.count, nodata= np.nan, dtype='float32')
-                                
-    #     with rasterio.open(self.__raster, 'r+') as tif:
-    #         # Reading raster to resample it
-    #         data = tif.read(out_shape=(int(tif.count), int(height), int(width)),
-    #                         resampling=rasterio.enums.Resampling.average)
+    def remove_outlier(self):
+        if self.__outliers == 'None':
+            print('Inform array with outliers')
+            pass
+        else:
+            with rasterio.open(self.__pathimg) as tif:
+                # Reading data and copy
+                data2 = tif.read(1)
+                profile = tif.meta.copy()
 
-    #     # Writing a new raster
-    #     output = self.__raster[:-4] + f'_R{xres}.tif'
+            # Look for outliers
+            for i, j in np.ndindex((data2.shape[0]-1, data2.shape[1]-1)):    
+                if data2[i,j] in self.__outliers:
 
-    #     with rasterio.open(output, 'w', **profile) as dst:
-    #         dst.write(data)
+                    # Replacing them by mean in a (3,3) array
+                    r = np.zeros((3,3))
+                    r = data2[i-1: i+2, j-1: j+2]
+                    data2[i,j] = np.nanmean(r)
 
-    #     return data
-    
-    # # Resource: #https://gis.stackexchange.com/questions/329434/creating-an-in-memory-rasterio-dataset-from-numpy-array?rq=1
-    '''
-    ### Resampling raster by mean
-    Input: raster, scale and base raster
-    '''
+            if self.__write == True:
+                output = self.__pathimg[:-4] + '_LessOut.tif'
+                with rasterio.open(output, 'w', **profile) as dst:
+                    dst.write(data2, 1)      
+                
+            return data2 
+
+    def normality_check(self):
+        if os.path.exists(self.__pathimg): 
+            with rasterio.open(self.__pathimg) as tif:
+                # Reading data and copy
+                data = tif.read(1)
+                profile = tif.meta.copy()
+
+        else:
+            data = self.__data 
+        
+        data = data[np.logical_not(np.isnan(data))]
+
+        # Shapiro-Wilk, D'Agostino and Kolmogorov-Sirmov tests
+        shapiro_wilk = scipy.stats.shapiro(data)
+        agostino = scipy.stats.normaltest(data)
+        kolmogorov = scipy.stats.kstest(data, 'norm')
+        
+        tests = [shapiro_wilk, agostino, kolmogorov]
+        pvalues = []
+        for test in tests:
+            if test[1] < 0.05:
+                pvalue = 'non-normal'
+            else:
+                pvalue = 'normal'
+
+            pvalues.append(pvalue)
+        
+        result = {'shapiro': (shapiro_wilk[0], shapiro_wilk[1], pvalues[0]), 
+                    'Agostino': (agostino[0], agostino[1], pvalues[1]), 
+                    'Kolmogorov': (kolmogorov[0], kolmogorov[1], pvalues[2])}
+
+        return result
+

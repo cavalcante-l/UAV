@@ -1,9 +1,12 @@
 '''
-# Workflow to process UAV images
+# 1st Workflow to process UAV images
+    Here we will clip rasters, normalize, create visible vegetation indexes,
+    and resample images. To avoid loading all images on memory, new rasters are created 
+    by each process.
 
-Developed for: Laiza Cavalcante de A. S.
-Period: Msc. Engineering Agriculture 
-        (Geoprocessing + Remote Sensing + Agriculture)
+    Developed for: Laiza Cavalcante de A. S.
+    Period: Msc. Engineering Agriculture 
+            (Geoprocessing + Remote Sensing + Agriculture)
 ''' 
 #%%
 import os
@@ -215,3 +218,56 @@ for rast in tqdm(lst_rast):
     
 
 # %%
+
+#%%
+''' 
+###########################################################
+# 5th Step:  
+        Looking for Outliers and Cheking normality
+'''
+# Testing outlier removal
+path = r'C:\Users\liz\Pictures\Saved Pictures\orthomosaicCN_20181206_p038_G.tif'
+
+# Looking for outliers in array
+outlier = Outliers_check(path_img = path)
+outliers_list = outlier.find_outlier()
+print(outliers_list)
+
+# Removing outliers
+new_raster = Outliers_check(path_img = path, outliers=outliers_list).remove_outlier()
+
+# Checking normality
+normality = Outliers_check(path_img = path)
+rst = normality.normality_check()
+
+
+#%%
+''' 
+###########################################################
+# 6th Step:  
+        Plotting
+'''
+
+# Plotting raster with outlier and without
+with rasterio.open(path) as tif:
+    org_raster = tif.read(1)
+fig, (ax1, ax2) = plt.subplots(nrows=1, ncols=2, figsize=(8,4))
+fig = ax1.imshow(org_raster, cmap='hot', vmin=-0.2, vmax=0.2)
+fig = ax2.imshow(new_raster, cmap='hot', vmin=-0.2, vmax=0.2)
+
+ax1.set_title('Original')
+ax2.set_title('Without outlier')
+plt.colorbar(fig)
+
+# Plotting raster histogram with outlier and without
+sns.set_style("dark")
+sns.despine()
+
+array_org = org_raster[np.logical_not(np.isnan(org_raster))].flatten()
+array_mod = new_raster[np.logical_not(np.isnan(new_raster))].flatten()
+
+fig2, axes = plt.subplots(nrows=1, ncols=2, figsize=(8,4), sharey=True)
+for ax, array in zip(axes, [array_org, array_mod]):
+    sns.distplot(array_org, ax=ax, 
+            hist_kws={'alpha': 0.4, 'color':'purple'},
+            kde_kws={'color': 'purple'})
