@@ -1,6 +1,6 @@
 # Unnamed Aerial Image processing
 
-In Remote Sensing the amount of UAV (Unnamed Aerial Vehical) data are increasing, and we should be able to process it. Well, in this repository you will find some scripts to help processing your orthomosaics (still in progress!). Implemented methods: 
+In Remote Sensing the amount of UAV (Unnamed Aerial Vehical) data are increasing and we should be able to process it. Well, in this repository you will find some scripts to help processing your orthomosaics (still in progress!). Implemented methods: 
 - Visible band normalization,
 - Visible Vegetation Indexes,
 - Outliers detection and removal,
