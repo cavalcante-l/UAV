@@ -1,43 +1,24 @@
 # Unnamed Aerial Image processing
 
-How to process UAV data? Well, here you can normalize your data, create Vegetation Indexes and compute some analyses.
+In Remote Sensing the amount of UAV (Unnamed Aerial Vehical) data are increasing, and we should be able to process it. Well, in this repository you will find some scripts to help processing your orthomosaics (still in progress!). Implemented methods: 
+- Visible band normalization,
+- Visible Vegetation Indexes,
+- Outliers detection and removal,
+- Image resample,
+- Image clustering, 
+- And rasters common tasks (clipping, raster to shapefile)
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes. See deployment for notes on how to deploy the project on a live system.
-
-### Prerequisites
-
-What things you need to install the software and how to install them
-
-```
-Give examples
-```
-
-### Installing
-
-A step by step series of examples that tell you how to get a development env running
-
-Say what the step will be
-
-```
-Give the example
-```
+The main script is module_func_raster.py which contains many of the implemented methods. To understand their usage follow these to scripts: workflow_p1 and workflow_p2.
 
 ## Authors
-
 * **Laiza Cavalcante** 
-- *Period*: Msc. Engineering Agriculture (2018-2020)
-            (Geoprocessing + Remote Sensing + Agriculture) 
-See also the list of [contributors](https://github.com/your/project/contributors) who participated in this project.
+This work was developed along my Masters degree in Engineering Agriculture (2018-2020) which united Geoprocessing, Remote Sensing and Agriculture areas.
 
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details
 
 ## Acknowledgments
-
-* Hat tip to anyone whose code was used
-* Inspiration
-* etc
-
+If you have any doubts, contact me!
