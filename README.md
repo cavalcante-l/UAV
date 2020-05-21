@@ -14,6 +14,7 @@ The main script is **module_func_raster.py** which contains many of the implemen
 
 ## Authors
 * **Laiza Cavalcante** 
+
 This work was developed along my Masters degree in Engineering Agriculture (2018-2020) which united Geoprocessing, Remote Sensing and Agriculture areas.
 
 ## License
